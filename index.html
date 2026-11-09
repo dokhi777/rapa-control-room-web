@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes">
+    <title>황리단길·대릉원 일대 보행 혼잡 관제 (웹 시연)</title>
+    <style>
+      html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #060A10; }
+      #unity-canvas { position: fixed; left: 0; top: 0; width: 100%; height: 100%; display: block; background: #060A10; outline: none; }
+      #loading {
+        position: fixed; left: 0; top: 0; width: 100%; height: 100%;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+        background: #060A10; color: #E9EFF7;
+        font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      }
+      #loading .title { font-size: 20px; font-weight: 700; }
+      #loading .note { font-size: 13px; color: #93A1B8; }
+      #bar { width: 360px; max-width: 80vw; height: 6px; background: #1F2D44; }
+      #bar-fill { width: 0%; height: 100%; background: #1F6FE0; }
+      #message {
+        position: fixed; left: 50%; top: 16px; transform: translateX(-50%); max-width: 90vw; display: none;
+        padding: 10px 16px; background: #0C1320; border: 1px solid #F2C230; color: #E9EFF7;
+        font: 14px "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 관제 화면(Unity WebGL)이 창 전체에 그려집니다. 전체 화면은 브라우저의 F11입니다.
+         웹 시연판은 키보드를 쓰지 않아서 화면을 눌러도 키 입력이 관제 화면으로 가지 않게 tabindex를 두지 않습니다.
+         F11, F5 같은 키를 브라우저가 받게 하려는 것입니다(아래 스크립트 첫 부분도 같은 목적). -->
+    <canvas id="unity-canvas"></canvas>
+    <div id="loading">
+      <div class="title">황리단길·대릉원 일대 보행 혼잡 관제</div>
+      <div id="bar"><div id="bar-fill"></div></div>
+      <div class="note" id="loading-text">불러오는 중 0%</div>
+      <div class="note">합성 시나리오 · 미리 계산한 하루 보기 · F11 전체 화면</div>
+    </div>
+    <div id="message"></div>
+    <script>
+      // Unity가 키 입력을 가져가면 F11, F5 같은 브라우저 키가 막힐 수 있습니다. Unity보다 먼저 받아서 Unity로 가지 않게만 합니다.
+      // preventDefault는 부르지 않아서 브라우저 동작은 그대로입니다. Unity를 불러오기 전에 등록해야 합니다.
+      ["keydown", "keypress", "keyup"].forEach(function (type) {
+        window.addEventListener(type, function (event) { event.stopImmediatePropagation(); }, true);
+      });
+
+      var canvas = document.querySelector("#unity-canvas");
+      var loading = document.querySelector("#loading");
+      var barFill = document.querySelector("#bar-fill");
+      var loadingText = document.querySelector("#loading-text");
+      var message = document.querySelector("#message");
+
+      function showMessage(text) {
+        message.textContent = text;
+        message.style.display = "block";
+      }
+
+      // Unity가 알려 주는 경고는 개발자 도구에만 남기고, 오류만 화면 위에 보여 줍니다.
+      function showBanner(text, type) {
+        if (type === "error") {
+          showMessage(text);
+        } else {
+          console.warn(text);
+        }
+      }
+
+      if (location.protocol === "file:") {
+        showMessage("파일을 더블클릭해서는 열리지 않아요. 웹 주소(GitHub Pages)로 열거나, 이 폴더에서 웹 서버를 켜고 여세요.");
+      }
+
+      var buildUrl = "Build";
+      var loaderUrl = buildUrl + "/ControlRoomWeb.loader.js";
+      var config = {
+        dataUrl: buildUrl + "/ControlRoomWeb.data.unityweb",
+        frameworkUrl: buildUrl + "/ControlRoomWeb.framework.js.unityweb",
+        codeUrl: buildUrl + "/ControlRoomWeb.wasm.unityweb",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "DefaultCompany",
+        productName: "RAPA_Tourism_CrowdSimulation",
+        productVersion: "0.1",
+        showBanner: showBanner,
+        // 화면이 아주 촘촘한 휴대폰에서도 너무 무겁지 않게 2배까지만 촘촘하게 그립니다.
+        devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2)
+      };
+
+      var script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = function () {
+        createUnityInstance(canvas, config, function (progress) {
+          var percent = Math.round(100 * progress);
+          barFill.style.width = percent + "%";
+          loadingText.textContent = "불러오는 중 " + percent + "%";
+        }).then(function () {
+          loading.style.display = "none";
+        }).catch(function (error) {
+          showMessage("관제 화면을 열지 못했어요. 다른 브라우저(Chrome, Edge)로 열어 보세요. (" + error + ")");
+        });
+      };
+      script.onerror = function () {
+        showMessage("관제 화면 파일을 받지 못했어요. 인터넷 연결을 확인하고 새로 고침(F5) 해 주세요.");
+      };
+      document.body.appendChild(script);
+    </script>
+  </body>
+</html>
